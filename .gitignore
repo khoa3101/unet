@@ -1,0 +1,6 @@
+__pycache__
+.vscode
+checkpoints
+data
+ISBI 2012
+results
