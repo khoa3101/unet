@@ -9,10 +9,11 @@ class ConvDouble(nn.Module):
         self.norm1 = nn.BatchNorm2d(out_channel)
         self.conv2 = nn.Conv2d(in_channels=out_channel, out_channels=out_channel, kernel_size=(3, 3), padding=1)
         self.norm2 = nn.BatchNorm2d(out_channel)
-        
+        self.relu = nn.ReLU(inplate=True)
+
     def forward(self, x):
-        x = nn.ReLU(inplace=True)(self.norm1(self.conv1(x)))
-        x = nn.ReLU(inplace=True)(self.norm2(self.conv2(x)))
+        x = self.relu(self.norm1(self.conv1(x)))
+        x = self.relu(self.norm2(self.conv2(x)))
         return x
 
 

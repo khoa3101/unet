@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader#, random_split
 from tqdm import tqdm 
 from data import ISBI2012
-from loss import DiceLoss
+from score import DiceScore
 from model import UNet
 
 
@@ -86,7 +86,7 @@ if __name__ == '__main__':
 
     # Prepare loss and model
     loss = nn.BCEWithLogitsLoss() # DiceLoss()
-    score = DiceLoss()
+    score = DiceScore()
     model = UNet(n_channels=NUM_CHANNEL, n_class=NUM_CLASS)
     if torch.cuda.is_available():
         loss.cuda()

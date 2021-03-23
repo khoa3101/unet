@@ -8,14 +8,14 @@ import numpy as np
 from torch.utils.data import DataLoader
 from tqdm import tqdm 
 from data import ISBI2012
-from loss import DiceLoss
+from score import DiceScore
 from model import UNet
 
 
 parser = argparse.ArgumentParser(description='Unet')
 parser.add_argument('-p', '--path', default='ISBI 2012', type=str, help='Path to data folder')
 parser.add_argument('-t', '--threshold', default=0.5, type=float, help='Threshold of confidence')
-parser.add_argument('-c', '--checkpoint', default='', type=str, help='Path to the checkpoint of model')
+parser.add_argument('-ckpt', '--checkpoint', default='', type=str, help='Path to the checkpoint of model')
 parser.add_argument('-n', '--n_class', default=1, type=int, help='Number of class to segmentation')
 parser.add_argument('-c', '--n_channel', default=1, type=int, help='Number of channels')
 opt = parser.parse_args()
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     test_loader = DataLoader(test_data, num_workers=8, pin_memory=True)
 
     # Prepare loss and model
-    loss = DiceLoss()
+    loss = DiceScore()
     model = UNet(n_channels=NUM_CHANNEL, n_class=NUM_CLASS)
     model.load_state_dict(torch.load(PATH))
     if torch.cuda.is_available():
@@ -82,5 +82,5 @@ if __name__ == '__main__':
     # Predicting and save images
     print('Predicting and saving...')
     preds = test(model, test_loader, loss)
-    save_preds(preds, RESULT_PATH, THRESHOLD)
+    save_preds(preds, RESULT_PATH)
     print('Done')

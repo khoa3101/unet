@@ -1,3 +1,4 @@
+from albumentations.augmentations.transforms import HorizontalFlip, VerticalFlip
 from torch.utils.data import Dataset
 import albumentations as A
 import numpy as np
@@ -15,7 +16,8 @@ class ISBI2012(Dataset):
         self.images_path.sort()
 
         self.transforms = A.Compose([
-            A.ShiftScaleRotate(shift_limit=0.1),
+            A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2),
+            A.Flip(),
             A.ElasticTransform(sigma=10, interpolation=cv2.INTER_CUBIC)
         ])
 
@@ -37,9 +39,13 @@ class ISBI2012(Dataset):
         else:
             label = np.zeros(img.shape, dtype=np.float32)
 
-        transformed = self.transforms(image=img, mask=label)
-        img = transformed['image'].transpose((2, 0, 1))
-        label = transformed['mask'].transpose((2, 0, 1))
+        if self.mode == 'train':
+            transformed = self.transforms(image=img, mask=label)
+            img = transformed['image'].transpose((2, 0, 1))
+            label = transformed['mask'].transpose((2, 0, 1))
+        else:
+            img = img.transpose((2, 0, 1))
+            label = label.transpose((2, 0, 1))
 
         return torch.from_numpy(img), torch.from_numpy(label)
 
