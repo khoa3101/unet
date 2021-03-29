@@ -1,23 +1,26 @@
-from random import paretovariate
 import torch
+import random
+import numpy as np
 import os
 import argparse
 import pandas as pd
 import torch.nn as nn
-from torch.utils.data import DataLoader#, random_split
+from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm 
 from data import ISBI2012
-from score import DiceScore
+from loss import FocalTverskyLoss, DiceScore, DiceLoss, DiceBCELoss
 from model import UNet
+from model1 import DcUnet
 
 
 parser = argparse.ArgumentParser(description='Unet')
-parser.add_argument('-p', '--path', default='ISBI 2012', type=str, help='Path to data folder')
+parser.add_argument('-p', '--path', default='ISBI2012', type=str, help='Path to data folder')
 parser.add_argument('-lr', '--learning_rate', default=1e-4, type=float, help='Learning rate of optimzer')
 parser.add_argument('-b', '--batch_size', default=1, type=int, help='Batch size of dataloader')
 parser.add_argument('-e', '--epoch', default=5, type=int, help='Epoch to train model')
 parser.add_argument('-n', '--n_class', default=1, type=int, help='Number of class to segmentation')
-parser.add_argument('-c', '--n_channel', default=1, type=int, help='Number of channels')
+parser.add_argument('-c', '--n_channel', default=3, type=int, help='Number of channels')
+parser.add_argument('-s', '--seed', default=31, type=str, help='Random seed')
 opt = parser.parse_args()
 
 BATCH_SIZE = opt.batch_size
@@ -26,7 +29,9 @@ EPOCH = opt.epoch
 NUM_CLASS = opt.n_class
 DATA_PATH = opt.path
 NUM_CHANNEL = opt.n_channel
-
+COUNT = 0
+BEST = 0.0
+SEED = opt.seed
 
 def create_folders(path=''):
     if not os.path.isdir(os.path.join(path, 'checkpoints')):
@@ -34,46 +39,83 @@ def create_folders(path=''):
     if not os.path.isdir(os.path.join(path, 'results')):
         os.mkdir(os.path.join(path, 'results'))
 
-def train(epoch, model, train_loader, optimizer, loss, score):
+def train(epoch, model, train_loader, val_loader, optimizer, scheduler, scaler, loss1, loss2, score):
+    global COUNT, BEST
     train_bar = tqdm(train_loader)
     train_result = 0.0
     train_score = 0.0
     train_batch = 0
     model.train()
     
-    for image, label in train_bar:
+    for image, label, weight_map in train_bar:
         train_batch += BATCH_SIZE
+        COUNT += 1
+
         if torch.cuda.is_available():
             image = image.cuda()
             label = label.cuda()
+            # weight_map = weight_map.cuda()
             
-        pred = model(image)
-
-        _loss = loss(pred, label)
-        sub_pred = torch.sigmoid(pred)
-        sub_pred = (sub_pred > 0.5).float()
-        _score = score(sub_pred, label)
-
         optimizer.zero_grad()
-        _loss.backward()
-        nn.utils.clip_grad_value_(model.parameters(), 0.1)
-        optimizer.step()
+        with torch.cuda.amp.autocast():
+            pred = model(image)
+            _loss = loss1(pred, label)#, weight_map)
+            # pred = torch.sigmoid(pred)
+            # _loss2 = loss2(pred, label)#, weight_map)
+            # _loss = _loss1 + _loss2
+            _score = score(pred, label, 0.5)
+        scaler.scale(_loss).backward()
+        scaler.step(optimizer)
+        scheduler.step()
+        scaler.update()
 
         train_result += _loss.item()
         train_score += _score.item()
 
-        train_bar.set_description(desc='[%d/%d] BCE Loss: %.4f, Dice Score: %.4f' % (epoch+1, EPOCH, _loss.item(), _score.item()))
+        train_bar.set_description(desc='[%d/%d] Combine Loss: %.4f, Dice Score: %.4f' % (epoch+1, EPOCH, _loss.item(), 1 - _score.item()))
 
-        # if train_batch == 10:
-        #     scheduler.step()
+    val_result, _ = val(model, val_loader, score)
+    print('Dice score: %.4f' % val_result)
+
+    if val_result > BEST:
+        BEST = val_result
+        torch.save(model.state_dict(), 'checkpoints/best_%s.pth' % DATA_PATH)
 
     return train_result/train_batch
 
-def val():
-    pass
+def val(model, val_loader, score, threshold=0.5):
+    # val_bar = tqdm(val_loader)
+    val_result = 0.0
+    val_batch = 0
+    preds = []
+    model.eval()
+
+    for image, label, _ in val_loader:
+        val_batch += 1
+        
+        if torch.cuda.is_available():
+            image = image.cuda()
+            label = label.cuda()
+
+        pred = model(image)
+        dice_score = score(pred, label, threshold)
+        val_result += dice_score.item()
+
+        if torch.cuda.is_available():
+            pred = pred.detach().cpu()
+        preds.append(pred.numpy().transpose((0, 2, 3, 1))[0])
+
+        # val_bar.set_description(desc='Dice Score: %.4f' % (val_result/val_batch))
+    
+    return val_result/val_batch, preds
 
 
 if __name__ == '__main__':
+    # Set seed
+    np.random.seed(SEED)
+    random.seed(SEED)
+    torch.manual_seed(SEED)
+
     # Create folders for storing training results
     print('Creating folders...')
     create_folders()
@@ -82,38 +124,45 @@ if __name__ == '__main__':
     print('Preparing...')
     # Prepare data
     train_data = ISBI2012(DATA_PATH, n_channel=NUM_CHANNEL, mode='train')
-    train_loader = DataLoader(train_data, num_workers=8, pin_memory=True, batch_size=BATCH_SIZE, shuffle=True)
+    val_data = ISBI2012(DATA_PATH, n_channel=NUM_CHANNEL, mode='test')
+    # n_val = int(len(dataset) * 0.1) + 1
+    # n_train = len(dataset) - n_val
+    # train_data, val_data = random_split(dataset, [n_train, n_val])
+    train_loader = DataLoader(train_data, num_workers=2, pin_memory=True, batch_size=BATCH_SIZE, shuffle=True)
+    val_loader = DataLoader(val_data, num_workers=2, pin_memory=True, batch_size=1, shuffle=False)
 
     # Prepare loss and model
-    loss = nn.BCEWithLogitsLoss() # DiceLoss()
+    # loss1 = FocalTverskyLoss()
+    loss1 = DiceBCELoss()
+    loss2 = DiceLoss() 
     score = DiceScore()
     model = UNet(n_channels=NUM_CHANNEL, n_class=NUM_CLASS)
+    # model = DcUnet(NUM_CHANNEL)
     if torch.cuda.is_available():
-        loss.cuda()
+        loss1.cuda()
+        loss2.cuda()
         model.cuda()
 
     # Prepare optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=LR, momentum=0.9, weight_decay=1e-8)
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=LR, weight_decay=1e-8, momentum=0.9)
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min' if NUM_CLASS > 1 else 'max', patience=2)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30, eta_min=0.00001)
     print('Done\n')
 
+    # Prepare scaler
+    scaler = torch.cuda.amp.GradScaler()
+
     result = []
-    best_result = 1.0e6
     print('Training...')
     for epoch in range(EPOCH):
-        # print('Epoch %d' % epoch)
-
-        train_result = train(epoch, model, train_loader, optimizer, loss, score)
-
+        train_result = train(epoch, model, train_loader, val_loader, optimizer, scheduler, scaler, loss1, loss2, score)
         result.append(train_result)
-        if train_result < best_result:
-            best_result = train_result
-            torch.save(model.state_dict(), 'checkpoints/best_%s.pth' % DATA_PATH)
-
-        data_frame = pd.DataFrame(
-            data={'Dice loss': result},
-            index=range(1, epoch+2)
-        )
-        data_frame.to_csv('results/training_%s.csv' % DATA_PATH, index_label='Epoch') 
+        
+    data_frame = pd.DataFrame(
+        data={'Dice loss': result},
+        index=range(1, epoch+2)
+    )
+    data_frame.to_csv('results/training_%s.csv' % DATA_PATH, index_label='Epoch') 
     print('Done')
