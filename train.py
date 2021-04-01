@@ -72,7 +72,7 @@ def train(epoch, model, train_loader, val_loader, optimizer, scheduler, scaler, 
         train_result += _loss.item()
         train_score += _score.item()
 
-        train_bar.set_description(desc='[%d/%d] Combine Loss: %.4f, Dice Score: %.4f' % (epoch+1, EPOCH, _loss.item(), 1 - _score.item()))
+        train_bar.set_description(desc='[%d/%d] Combine Loss: %.4f, Dice Score: %.4f' % (epoch+1, EPOCH, _loss.item(), _score.item()))
 
     val_result, _ = val(model, val_loader, score)
     print('Dice score: %.4f' % val_result)

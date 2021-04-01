@@ -1,7 +1,9 @@
 __pycache__
 .vscode
 .ipynb_checkpoints
+*.ipynb
 checkpoints
 data
-ISBI 2012
 results
+ISBI2012
+SIIM
