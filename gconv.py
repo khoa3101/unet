@@ -55,7 +55,7 @@ class ConvP4(nn.Module):
         x = x.view(x.size(0), -1, x.size(3), x.size(4))
         w = self._rotated(self.weight)
         if self.transpose:
-            y = F.conv_transpose2d(s, w, stride=self.stride, padding=self.padding)
+            y = F.conv_transpose2d(x, w, stride=self.stride, padding=self.padding)
         else:
             y = F.conv2d(x, w, stride=self.stride, padding=self.padding)
         y = y.view(y.size(0), -1, 4, y.size(2), y.size(3))
