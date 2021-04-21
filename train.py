@@ -7,7 +7,7 @@ import pandas as pd
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm 
-from data import ISBI2012
+from dataset import ISBI2012
 from loss import FocalTverskyLoss, DiceScore, DiceLoss, DiceBCELoss
 from model import UNet
 from model_gconv import UNetGConv
@@ -21,6 +21,7 @@ parser.add_argument('-e', '--epoch', default=5, type=int, help='Epoch to train m
 parser.add_argument('-n', '--n_class', default=1, type=int, help='Number of class to segmentation')
 parser.add_argument('-c', '--n_channel', default=3, type=int, help='Number of channels')
 parser.add_argument('-s', '--seed', default=31, type=str, help='Random seed')
+parser.add_argument('-g', '--group', default=False, type=bool, help='Use group convolutional layer or not')
 opt = parser.parse_args()
 
 BATCH_SIZE = opt.batch_size
@@ -32,6 +33,7 @@ NUM_CHANNEL = opt.n_channel
 COUNT = 0
 BEST = 0.0
 SEED = opt.seed
+GROUP = opt.group
 
 def create_folders(path=''):
     if not os.path.isdir(os.path.join(path, 'checkpoints')):
@@ -131,8 +133,10 @@ if __name__ == '__main__':
     # loss1 = FocalTverskyLoss()
     loss1 = DiceBCELoss()
     score = DiceScore()
-    # model = UNet(n_channels=NUM_CHANNEL, n_classes=NUM_CLASS)
-    model = UNetGConv(n_channels=NUM_CHANNEL, n_classes=NUM_CLASS)
+    if GROUP:
+        model = UNetGConv(n_channels=NUM_CHANNEL, n_classes=NUM_CLASS)
+    else:
+        model = UNet(n_channels=NUM_CHANNEL, n_classes=NUM_CLASS)
     if torch.cuda.is_available():
         loss1.cuda()
         model.cuda()

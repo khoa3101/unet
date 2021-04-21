@@ -44,9 +44,11 @@ class UpSample(nn.Module):
     def forward(self, x1, x2):
         x1 = self.upconv(x1)
         diff_x = x2.size(-2) - x1.size(-2)
-        diff_y = x2.size(-1) - x2.size(-1)
+        diff_y = x2.size(-1) - x1.size(-1)
         if x1.size() != x2.size():
             pad = torch.zeros(x2.size())
+            if torch.cuda.is_available():
+                pad = pad.cuda()
             pad[..., diff_x//2:-(diff_x-diff_x//2), diff_y//2:-(diff_y-diff_y//2)] = x1
         else:
             pad = x1

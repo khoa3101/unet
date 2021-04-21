@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 class ConvZ2P4(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
-                 bias=True, stride=1, padding=1):
+                 bias=True, stride=1, padding=0):
         super().__init__()
         w = torch.empty(out_channels, in_channels, kernel_size, kernel_size)
         self.weight = nn.Parameter(w)
@@ -31,9 +31,12 @@ class ConvZ2P4(nn.Module):
 
 class ConvP4(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
-                 bias=True, stride=1, padding=1, transpose=False):
+                 bias=True, stride=1, padding=0, transpose=False):
         super().__init__()
-        w = torch.empty(out_channels, in_channels, 4, kernel_size, kernel_size)
+        if transpose:
+            w = torch.empty(in_channels, out_channels, 4, kernel_size, kernel_size)
+        else:
+            w = torch.empty(out_channels, in_channels, 4, kernel_size, kernel_size)
         self.weight = nn.Parameter(w)
         nn.init.kaiming_uniform_(self.weight, a=(5 ** 0.5))
         if bias:
@@ -66,7 +69,7 @@ class ConvP4(nn.Module):
 
 class ConvP4Z2(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size,
-                 bias=True, stride=1, padding=1):
+                 bias=True, stride=1, padding=0):
         super().__init__()
         w = torch.empty(out_channels, 4*in_channels, kernel_size, kernel_size)
         self.weight = nn.Parameter(w)
