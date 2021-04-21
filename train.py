@@ -10,7 +10,7 @@ from tqdm import tqdm
 from data import ISBI2012
 from loss import FocalTverskyLoss, DiceScore, DiceLoss, DiceBCELoss
 from model import UNet
-from model1 import DcUnet
+from model_gconv import UNetGConv
 
 
 parser = argparse.ArgumentParser(description='Unet')
@@ -39,7 +39,7 @@ def create_folders(path=''):
     if not os.path.isdir(os.path.join(path, 'results')):
         os.mkdir(os.path.join(path, 'results'))
 
-def train(epoch, model, train_loader, val_loader, optimizer, scheduler, scaler, loss1, loss2, score):
+def train(epoch, model, train_loader, val_loader, optimizer, scheduler, scaler, loss1, score):
     global COUNT, BEST
     train_bar = tqdm(train_loader)
     train_result = 0.0
@@ -47,22 +47,18 @@ def train(epoch, model, train_loader, val_loader, optimizer, scheduler, scaler, 
     train_batch = 0
     model.train()
     
-    for image, label, weight_map in train_bar:
+    for image, label in train_bar:
         train_batch += BATCH_SIZE
         COUNT += 1
 
         if torch.cuda.is_available():
             image = image.cuda()
             label = label.cuda()
-            # weight_map = weight_map.cuda()
             
         optimizer.zero_grad()
         with torch.cuda.amp.autocast():
             pred = model(image)
-            _loss = loss1(pred, label)#, weight_map)
-            # pred = torch.sigmoid(pred)
-            # _loss2 = loss2(pred, label)#, weight_map)
-            # _loss = _loss1 + _loss2
+            _loss = loss1(pred, label)
             _score = score(pred, label, 0.5)
         scaler.scale(_loss).backward()
         scaler.step(optimizer)
@@ -90,7 +86,7 @@ def val(model, val_loader, score, threshold=0.5):
     preds = []
     model.eval()
 
-    for image, label, _ in val_loader:
+    for image, label in val_loader:
         val_batch += 1
         
         if torch.cuda.is_available():
@@ -134,13 +130,11 @@ if __name__ == '__main__':
     # Prepare loss and model
     # loss1 = FocalTverskyLoss()
     loss1 = DiceBCELoss()
-    loss2 = DiceLoss() 
     score = DiceScore()
-    model = UNet(n_channels=NUM_CHANNEL, n_class=NUM_CLASS)
-    # model = DcUnet(NUM_CHANNEL)
+    # model = UNet(n_channels=NUM_CHANNEL, n_classes=NUM_CLASS)
+    model = UNetGConv(n_channels=NUM_CHANNEL, n_classes=NUM_CLASS)
     if torch.cuda.is_available():
         loss1.cuda()
-        loss2.cuda()
         model.cuda()
 
     # Prepare optimizer
@@ -157,7 +151,7 @@ if __name__ == '__main__':
     result = []
     print('Training...')
     for epoch in range(EPOCH):
-        train_result = train(epoch, model, train_loader, val_loader, optimizer, scheduler, scaler, loss1, loss2, score)
+        train_result = train(epoch, model, train_loader, val_loader, optimizer, scheduler, scaler, loss1, score)
         result.append(train_result)
         
     data_frame = pd.DataFrame(
