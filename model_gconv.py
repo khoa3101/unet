@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import math
-from gconv import ConvZ2P4, ConvP4, ConvP4Z2, MaxSpatialPoolP4
+from gconv import ConvZ2P4, ConvP4, MaxSpatialPoolP4, AvgRootPoolP4
 
 class ConvDouble(nn.Module):
     def __init__(self, in_channel, out_channel):
@@ -76,7 +76,8 @@ class UNetGConv(nn.Module):
         self.up3 = UpSample(256, 128)
         self.up4 = UpSample(128, 64)
 
-        self.conv_last = ConvP4Z2(64, n_classes, kernel_size=1)
+        self.conv_last = ConvP4(64, n_classes, kernel_size=1)
+        self.convert_z2 = AvgRootPoolP4()
     
     def forward(self, x):
         x = self.conv_first(x)
@@ -93,5 +94,7 @@ class UNetGConv(nn.Module):
         x = self.up2(x, x3)
         x = self.up3(x, x2)
         x = self.up4(x, x1)
+
         x = self.conv_last(x)
+        x = self.convert_z2(x)
         return x

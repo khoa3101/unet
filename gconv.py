@@ -67,29 +67,6 @@ class ConvP4(nn.Module):
         return y
 
 
-class ConvP4Z2(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size,
-                 bias=True, stride=1, padding=0):
-        super().__init__()
-        w = torch.empty(out_channels, 4*in_channels, kernel_size, kernel_size)
-        self.weight = nn.Parameter(w)
-        nn.init.kaiming_uniform_(self.weight, a=(5 ** 0.5))
-        if bias:
-            self.bias = nn.Parameter(torch.zeros(out_channels))
-        else:
-            self.bias = None
-        self.stride = stride
-        self.padding = padding
-
-    def forward(self, x):
-        x = x.view(x.size(0), -1, x.size(3), x.size(4))
-        w = self.weight
-        y = F.conv2d(x, w, stride=self.stride, padding=self.padding)
-        if self.bias is not None:
-            y = y + self.bias.view(1, -1, 1, 1)
-        return y
-
-
 class MaxRotationPoolP4(nn.Module):
     def forward(self, x):
         return x.max(2).values
