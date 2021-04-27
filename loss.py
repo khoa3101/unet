@@ -11,7 +11,6 @@ class DiceScore(nn.Module):
         self.threshold = threshold
 
     def forward(self, inputs, targets):  
-        inputs = F.softmax(inputs, dim=1)
         inputs = (inputs > self.threshold).float()
         if self.axis:
             inputs = inputs[:, self.axis]
@@ -31,8 +30,6 @@ class DiceLoss(nn.Module):
         self.axis = axis
 
     def forward(self, inputs, targets):
-        inputs = F.softmax(inputs, dim=1)
-        # inputs = F.log_softmax(inputs, dim=1)
         if self.axis:
             inputs = inputs[:, self.axis]
             targets = targets[:, self.axis]
@@ -54,19 +51,17 @@ class DiceCELoss(nn.Module):
             self.dice = [DiceLoss(smooth=smooth)]
 
     def forward(self, inputs, targets): 
-        # dice_loss = 0.0
-        # coeff = 1.
-        # for _dice in self.dice:
-        #     dice_loss += coeff * _dice(inputs, targets) 
-        #     coeff *= 2
-        dice_loss = self.dice[0](inputs, targets) + 2*self.dice[1](inputs, targets)
-        # if self.binary:
-        #     ce = F.binary_cross_entropy(inputs, targets)
-        # else:
-        #     targets = targets.argmax(1).long()
-        #     # targets = targets.type(torch.cuda.LongTensor) if torch.cuda.is_available() else targets.type(torch.LongTensor)
-        #     ce = F.cross_entropy(inputs, targets)
-        Dice_CE = dice_loss
+        if self.binary:
+            ce = F.binary_cross_entropy(inputs, targets)
+        else:
+            targets = targets.argmax(1).long()
+            # targets = targets.type(torch.cuda.LongTensor) if torch.cuda.is_available() else targets.type(torch.LongTensor)
+            ce = F.nll_loss(inputs, targets)
+        Dice_CE = ce
+        coeff = 1.
+        for _dice in self.dice:
+            Dice_CE += coeff * _dice(inputs, targets) 
+            coeff *= 2
         return Dice_CE
 
 

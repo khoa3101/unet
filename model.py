@@ -92,7 +92,7 @@ class UNet(nn.Module):
         x = self.up3(x, x2)
         x = self.up4(x, x1)
         x = self.conv_last(x)
-        # x = self.normalize(x)
+        x = self.normalize(x)
         return x
 
     def total_params(self):
