@@ -42,9 +42,10 @@ class DiceLoss(nn.Module):
 
 
 class DiceCELoss(nn.Module):
-    def __init__(self, binary=True, smooth=1.0, axis=None):
+    def __init__(self, binary=True, smooth=1.0, axis=None, weight_dice=(0.1, 1.0)):
         super(DiceCELoss, self).__init__()
         self.binary = binary
+        self.weight_dice = weight_dice
         if axis:
             self.dice = [DiceLoss(smooth=smooth, axis=i) for i in axis] 
         else:
@@ -52,17 +53,17 @@ class DiceCELoss(nn.Module):
 
     def forward(self, inputs, targets): 
         if self.binary:
-            ce = F.binary_cross_entropy(inputs, targets)
+            _ce = F.binary_cross_entropy(inputs, targets)
         else:
             targets = targets.argmax(1).long()
-            # targets = targets.type(torch.cuda.LongTensor) if torch.cuda.is_available() else targets.type(torch.LongTensor)
-            ce = F.nll_loss(inputs, targets)
-        Dice_CE = ce
-        coeff = 1.
-        for _dice in self.dice:
-            Dice_CE += coeff * _dice(inputs, targets) 
-            coeff *= 2
-        return Dice_CE
+            _ce = F.nll_loss(torch.log(inputs + 1e-5), targets)
+        _dice = 0.0
+        _coeff = 1.
+        for i, dice in enumerate(self.dice):
+            _dice += self.weight_dice[i] * _dice(inputs, targets) 
+            _coeff += self.weight_dice[i]
+        _total = _dice/_coeff + _ce
+        return _total
 
 
 class FocalLoss(nn.Module):
@@ -77,8 +78,7 @@ class FocalLoss(nn.Module):
             ce = F.binary_cross_entropy(inputs, targets)
         else:
             targets = targets.argmax(1).long()
-            # targets = targets.type(torch.cuda.LongTensor) if torch.cuda.is_available() else targets.type(torch.LongTensor)
-            ce = F.nll_loss(inputs, targets)
+            ce = F.nll_loss(torch.log(inputs + 1e-5), targets)
         ce_exp = torch.exp(-ce)
         focal_loss = self.alpha * (1-ce_exp)**self.gamma * ce            
         return focal_loss

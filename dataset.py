@@ -70,7 +70,7 @@ class KiTS2019(Dataset):
         img = np.load(image_path)
         label_path = image_path.replace('image', 'label')
         label = np.load(label_path)
-        img = (img + 128.)/256.
+        img = (img + 80.)/380.
         
         # if self.mode == 'train':
         #     transformed = self.transforms(image=img, mask=label)

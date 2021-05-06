@@ -18,7 +18,8 @@ parser = argparse.ArgumentParser(description='Unet')
 parser.add_argument('-p', '--path', default='ISBI2012', type=str, help='Path to data folder')
 parser.add_argument('-lr', '--learning_rate', default=1e-4, type=float, help='Learning rate of optimzer')
 parser.add_argument('-b', '--batch_size', default=1, type=int, help='Batch size of dataloader')
-parser.add_argument('-e', '--epoch', default=5, type=int, help='Epoch to train model')
+parser.add_argument('-w', '--worker', default=8, type=int, help='Number of workers')
+parser.add_argument('-e', '--epoch', default=10, type=int, help='Epoch to train model')
 parser.add_argument('-n', '--n_class', default=1, type=int, help='Number of class to segmentation')
 parser.add_argument('-c', '--n_channel', default=3, type=int, help='Number of channels')
 parser.add_argument('-s', '--seed', default=31, type=str, help='Random seed')
@@ -27,6 +28,7 @@ parser.add_argument('-d', '--dataset', default='ISBI2012', choices=['ISBI2012', 
 args = parser.parse_args()
 
 BATCH_SIZE = args.batch_size
+WORKER = args.worker
 LR = args.learning_rate
 EPOCH = args.epoch
 NUM_CLASS = args.n_class
@@ -157,8 +159,8 @@ if __name__ == '__main__':
     # Prepare data
     train_data = FUNCTION[DATASET](DATA_PATH, n_channel=NUM_CHANNEL, mode='train')
     val_data = FUNCTION[DATASET](DATA_PATH, n_channel=NUM_CHANNEL, mode='val')
-    train_loader = DataLoader(train_data, num_workers=8, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_data, num_workers=8, batch_size=2*BATCH_SIZE, shuffle=False)
+    train_loader = DataLoader(train_data, num_workers=WORKER, batch_size=BATCH_SIZE, shuffle=True)
+    val_loader = DataLoader(val_data, num_workers=WORKER, batch_size=2*BATCH_SIZE, shuffle=False)
 
     # Prepare loss and model
     axis = tuple(i for i in range(1, NUM_CLASS)) if NUM_CLASS > 1 else None
