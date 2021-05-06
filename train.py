@@ -81,15 +81,15 @@ def train(epoch, model, train_loader, val_loader, optimizer, scheduler, loss, sc
         train_score_overall += _score_overall.item()
         train_score_primary += _score_primary.item()
 
-        train_bar.set_description(desc='[%d/%d] Combine Loss: %.4f, Dice Score overall: %.4f, Dice Score primary: %.4f' % (
+        train_bar.set_description(desc='[%d/%d] Loss: %.4f, Dice overall: %.4f, Dice primary: %.4f' % (
             epoch+1, EPOCH, train_loss/train_batch, train_score_overall/train_batch, train_score_primary/train_batch
         ))
 
         if (train_batch+1) % 10 == 0:
             wandb.log({
                 'Train/Loss': train_loss/train_batch, 
-                'Train/Dice Score overall': train_score_overall/train_batch, 
-                'Train/Dice Score primary': train_score_primary/train_batch
+                'Train/Dice overall': train_score_overall/train_batch, 
+                'Train/Dice primary': train_score_primary/train_batch
             })
 
     val_score_overall, val_score_primary , _ = val(model, val_loader, score_overall, score_primary)
@@ -128,14 +128,14 @@ def val(model, val_loader, score_overall, score_primary):
                 pred = pred.detach().cpu()
             preds.append(pred.numpy().transpose((0, 2, 3, 1))[0])
 
-            val_bar.set_description(desc='Dice Score overall: %.4f, Dice Score primary: %.4f' % (
+            val_bar.set_description(desc='Dice overall: %.4f, Dice primary: %.4f' % (
                 val_score_overall/val_batch, val_score_primary/val_batch
             ))
 
             if (val_batch+1) % 2 == 0:
                 wandb.log({
-                    'Val/Dice Score overall': val_score_overall/val_batch, 
-                    'Val/Dice Score primary': val_score_primary/val_batch
+                    'Val/Dice overall': val_score_overall/val_batch, 
+                    'Val/Dice primary': val_score_primary/val_batch
                 })
     
     return val_score_overall/val_batch, val_score_primary/val_batch, preds

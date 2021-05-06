@@ -54,7 +54,7 @@ class KiTS2019(Dataset):
     def __init__(self, path, n_channel=1, mode='train'):
         super(KiTS2019, self).__init__()
 
-        self.n_channel = n_channel,
+        self.n_channel = n_channel
         self.mode = mode
         self.images_path = glob.glob('%s/%s/images/*' % (path, mode))
 

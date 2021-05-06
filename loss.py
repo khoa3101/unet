@@ -55,12 +55,12 @@ class DiceCELoss(nn.Module):
         if self.binary:
             _ce = F.binary_cross_entropy(inputs, targets)
         else:
-            targets = targets.argmax(1).long()
-            _ce = F.nll_loss(torch.log(inputs + 1e-5), targets)
+            targets_arg = targets.argmax(1).long()
+            _ce = F.nll_loss(torch.log(inputs + 1e-5), targets_arg)
         _dice = 0.0
         _coeff = 1.
         for i, dice in enumerate(self.dice):
-            _dice += self.weight_dice[i] * _dice(inputs, targets) 
+            _dice += self.weight_dice[i] * dice(inputs, targets) 
             _coeff += self.weight_dice[i]
         _total = _dice/_coeff + _ce
         return _total

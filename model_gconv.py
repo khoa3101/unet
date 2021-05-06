@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import math
 from gconv import ConvZ2P4, ConvP4, MaxSpatialPoolP4, AvgRootPoolP4
-from groupy.gconv.pytorch_gconv import P4ConvP4, P4ConvZ2
+# from groupy.gconv.pytorch_gconv import P4ConvP4, P4ConvZ2
 
 class ConvDouble(nn.Module):
     def __init__(self, in_channel, out_channel):
@@ -17,13 +17,13 @@ class ConvDouble(nn.Module):
         # self.norm2 = nn.BatchNorm2d(out_channel)
         self.norm2 = nn.GroupNorm(8, out_channel)
         self.relu = nn.ReLU(inplace=True)
-        self.res = nn.Identity()
+        # self.res = nn.Identity()
 
     def forward(self, x):
         x = self.relu(self.norm1(self.conv1(x)))
-        residual = self.res(x)
+        # residual = self.res(x)
         x = self.relu(self.norm2(self.conv2(x)))
-        return x + residual
+        return x# + residual
 
 
 class DownSample(nn.Module):

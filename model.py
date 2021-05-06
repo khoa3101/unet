@@ -13,11 +13,11 @@ class ConvDouble(nn.Module):
         # self.norm2 = nn.BatchNorm2d(out_channel)
         self.norm2 = nn.GroupNorm(8, out_channel)
         self.relu = nn.ReLU(inplace=True)
-        self.res = nn.Identity()
+        # self.res = nn.Identity()
 
     def forward(self, x):
         x = self.relu(self.norm1(self.conv1(x)))
-        residual = self.res(x)
+        # residual = self.res(x)
         x = self.relu(self.norm2(self.conv2(x)))
         return x# + residual
 
