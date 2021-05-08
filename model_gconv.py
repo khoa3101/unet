@@ -70,21 +70,21 @@ class UNetGConv(nn.Module):
         # self.conv_first = P4ConvZ2(n_channels, n_channels, kernel_size=7, padding=3)
         self.conv_first = ConvZ2P4(n_channels, n_channels, kernel_size=7, padding=3)
 
-        self.down1 = DownSample(n_channels, 32)
-        self.down2 = DownSample(32, 64)
-        self.down3 = DownSample(64, 128)
-        self.down4 = DownSample(128, 256)
+        self.down1 = DownSample(n_channels, 16)
+        self.down2 = DownSample(16, 32)
+        self.down3 = DownSample(32, 64)
+        self.down4 = DownSample(64, 128)
 
-        self.convdouble = ConvDouble(256, 512)
+        self.convdouble = ConvDouble(128, 256)
         self.drop = nn.Dropout()
 
-        self.up1 = UpSample(512, 256)
-        self.up2 = UpSample(256, 128)
-        self.up3 = UpSample(128, 64)
-        self.up4 = UpSample(64, 32)
+        self.up1 = UpSample(256, 128)
+        self.up2 = UpSample(128, 64)
+        self.up3 = UpSample(64, 32)
+        self.up4 = UpSample(32, 16)
 
-        # self.conv_last = P4ConvP4(32, n_classes, kernel_size=3, padding=1)
-        self.conv_last = ConvP4(32, n_classes, kernel_size=3, padding=1)
+        # self.conv_last = P4ConvP4(16, n_classes, kernel_size=3, padding=1)
+        self.conv_last = ConvP4(16, n_classes, kernel_size=3, padding=1)
         self.normalize = nn.Sigmoid() if n_classes == 1 else nn.Softmax(1)
         self.convert_z2 = AvgRootPoolP4()
     
