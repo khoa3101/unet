@@ -42,7 +42,7 @@ class DiceLoss(nn.Module):
 
 
 class DiceCELoss(nn.Module):
-    def __init__(self, binary=True, smooth=1.0, axis=None, weight_dice=(0.1, 1.0)):
+    def __init__(self, binary=True, smooth=1.0, axis=None, weight_dice=(1.0, 1.0)):
         super(DiceCELoss, self).__init__()
         self.binary = binary
         self.weight_dice = weight_dice
@@ -98,7 +98,7 @@ class TverskyLoss(nn.Module):
         fp = ((1-targets) * inputs).sum()
         fn = (targets * (1-inputs)).sum()
        
-        Tversky = (tp + smooth) / (tp + self.alpha*fn + (1-self.alpha)*fp + self.smooth)  
+        Tversky = (tp + self.smooth) / (tp + self.alpha*fn + (1-self.alpha)*fp + self.smooth)  
         return 1 - Tversky
 
 
